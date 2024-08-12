@@ -19,6 +19,7 @@ var createScene = function () {
 		floorMeshes: [env.ground],
 	});
 
+
 	return scene;
 };
 

@@ -21,13 +21,11 @@ const paths = {
         html: 'src/**.html',
         css: 'src/css/**.css',
         js: 'src/js/**.js',
-        images: 'src/images/**'
     },
     dist: {
         dir: 'dist',
-        css: 'style.min.css',
-        js: 'script.min.js',
-        images: 'dist/images'
+        css: 'm.css',
+        js: 'm.js',
     }
 };
 
@@ -78,12 +76,6 @@ gulp.task('buildJS', () => {
         .pipe(gulp.dest(paths.dist.dir));
 });
 
-gulp.task('optimizeImages', () => {
-    return gulp.src(paths.src.images)
-        .pipe(imagemin())
-        .pipe(gulp.dest(paths.dist.images));
-});
-
 gulp.task('zip', () => {
     const thirteenKb = 13 * 1024;
 
@@ -104,7 +96,7 @@ gulp.task('test', gulp.parallel(
 
 gulp.task('build', gulp.series(
     'cleanDist',
-    gulp.parallel('buildHTML', 'buildCSS', 'buildJS', 'optimizeImages'),
+    gulp.parallel('buildHTML', 'buildCSS', 'buildJS'),
     'zip'
 ));
 
@@ -112,7 +104,6 @@ gulp.task('watch', () => {
     gulp.watch(paths.src.html, gulp.series('buildHTML', 'zip'));
     gulp.watch(paths.src.css, gulp.series('buildCSS', 'zip'));
     gulp.watch(paths.src.js, gulp.series('buildJS', 'zip'));
-    gulp.watch(paths.src.images, gulp.series('optimizeImages', 'zip'));
     gulp.src('dist').pipe(server({
         livereload: true,
         open: true,
