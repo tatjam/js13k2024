@@ -9,9 +9,8 @@
   },
   "author": "Shreyas Minocha",
   "license": "MIT",
-  "dependencies": {},
   "devDependencies": {
-    "gulp": "^4.0.0",
+    "gulp": "^4.0.2",
     "gulp-check-filesize": "^2.0.1",
     "gulp-clean-css": "^3.9.4",
     "gulp-concat": "^2.6.1",
@@ -42,5 +41,8 @@
   "bugs": {
     "url": "https://github.com/shreyasminocha/js13k-boilerplate/issues"
   },
-  "homepage": "https://github.com/shreyasminocha/js13k-boilerplate#readme"
+  "homepage": "https://github.com/shreyasminocha/js13k-boilerplate#readme",
+  "dependencies": {
+    "gulp-webserver": "^0.9.1"
+  }
 }

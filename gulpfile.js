@@ -14,6 +14,8 @@ const imagemin = require('gulp-imagemin');
 const zip = require('gulp-zip');
 const checkFileSize = require('gulp-check-filesize');
 
+var server = require('gulp-webserver');
+
 const paths = {
     src: {
         html: 'src/**.html',
@@ -111,6 +113,11 @@ gulp.task('watch', () => {
     gulp.watch(paths.src.css, gulp.series('buildCSS', 'zip'));
     gulp.watch(paths.src.js, gulp.series('buildJS', 'zip'));
     gulp.watch(paths.src.images, gulp.series('optimizeImages', 'zip'));
+    gulp.src('dist').pipe(server({
+        livereload: true,
+        open: true,
+        port: 8000
+    }));
 });
 
 gulp.task('default', gulp.series(
