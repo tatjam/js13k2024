@@ -48,20 +48,23 @@ function clamp(num, mi, ma) {
 	return num <= mi ? mi : num >= ma ? ma : num;
 }
 
-function mapgen(w, h) {
-	const root = { s: [], x: 0, y: 0, w: w, h: h };
+function split(root, min_size) {
 
 	let finished = false;
 	// We start splitting horizontally
 	let hor = true;
+	let it = 0;
 	while (!finished) {
 		let split_any = false;
 		let open = find_open(root);
 		for (op of open) {
 			// Split 
 			// Constant is minimum partition size
-			let spl_lim = size_final(op, hor, 5.0);
-			if (spl_lim < 0.5) {
+			let spl_lim = size_final(op, hor, min_size);
+			if (Math.random() >= 0.8 && it > 3) {
+				op.b = true;
+			}
+			if (spl_lim < 0.5 && op.b === undefined) {
 				let nw1, nh1, nw2, nh2 = 0.0;
 				let spl = clamp(Math.random(), spl_lim, 1.0 - spl_lim);
 				if (hor) {
@@ -69,24 +72,54 @@ function mapgen(w, h) {
 					nw2 = op.w;
 					nh1 = op.h * spl;
 					nh2 = op.h - nh1;
+					op.s.push({ s: [], x: op.x, y: op.y, w: nw1, h: nh1 });
+					op.s.push({ s: [], x: op.x, y: op.y + nh1, w: nw2, h: nh2 });
 				} else {
 					nh1 = op.h;
 					nh2 = op.h;
 					nw1 = op.w * spl;
 					nw2 = op.w - nw1;
+					op.s.push({ s: [], x: op.x, y: op.y, w: nw1, h: nh1 });
+					op.s.push({ s: [], x: op.x + nw1, y: op.y, w: nw2, h: nh2 });
 				}
-				op.s.push({ s: [], x: op.x, y: op.y, w: nw1, h: nh1 });
-				op.s.push({ s: [], x: op.x + nw1, y: op.y + nh1, w: nw2, h: nh2 });
 				split_any = true;
-			} else {
 			}
 		}
 
 		if (!split_any) {
 			finished = true;
 		}
+		it++;
 		hor = !hor;
 	}
+}
+
+function debug_draw(scene, node) {
+	let open = find_open(node);
+	for (op of open) {
+		const plane = BABYLON.MeshBuilder.CreatePlane("plane", { height: op.h * 0.01, width: op.w * 0.01 });
+		plane.enableEdgesRendering();
+		plane.edgesWidth = 0.1;
+		// position of the center!
+		plane.position.x = op.x * 0.01 + op.w * 0.01 * 0.5;
+		plane.position.y = op.y * 0.01 + op.h * 0.01 * 0.5;
+	}
+}
+
+function mapgen(scene, w, h) {
+	const root = { s: [], x: 0, y: 0, w: w, h: h };
+
+	// Now shrink spaces to make the corridors
+	split(root, 10.0);
+	debug_draw(scene, root);
+
+	// Similar splitting, but this time for rooms
+
+	// Wall generation, including doors and windows
+
+	// Place props and enemies
+
+	// Done!
 
 	console.log(root);
 }

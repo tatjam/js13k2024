@@ -5,9 +5,8 @@ const canvas = document.getElementById("c"); // Get the canvas element
 const engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engine
 
 var createScene = function () {
-	mapgen(50, 50);
 	var scene = new BABYLON.Scene(engine);
-	scene.createDefaultCamera(false, true, true);
+	scene.createDefaultCamera(true, true, true);
 	var light = new BABYLON.HemisphericLight("l1", new BABYLON.Vector3(0, 1, 0), scene);
 	light.intensity = 0.7;
 
@@ -17,6 +16,8 @@ var createScene = function () {
 	const xr = scene.createDefaultXRExperienceAsync({
 		floorMeshes: [env.ground],
 	});
+
+	mapgen(scene, 50, 50);
 
 	return scene;
 };
