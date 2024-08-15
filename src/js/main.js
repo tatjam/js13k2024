@@ -17,7 +17,7 @@ var createScene = function () {
 		floorMeshes: [env.ground],
 	});
 
-	mapgen(scene, 50, 50);
+	mapgen(scene, 60, 60);
 
 	return scene;
 };

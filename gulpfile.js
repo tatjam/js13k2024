@@ -1,11 +1,9 @@
 const gulp = require('gulp');
 
 const lintHTML = require('gulp-htmllint');
-const lintCSS = require('gulp-stylelint');
 const lintJS = require('gulp-eslint');
 const deleteFiles = require('gulp-rimraf');
 const minifyHTML = require('gulp-minify-html');
-const minifyCSS = require('gulp-clean-css');
 const minifyJS = require('gulp-terser');
 const concat = require('gulp-concat');
 const rename = require('gulp-rename');
@@ -34,13 +32,6 @@ gulp.task('lintHTML', () => {
         .pipe(lintHTML());
 });
 
-gulp.task('lintCSS', () => {
-    return gulp.src(paths.src.css)
-        .pipe(lintCSS({
-            reporters: [{ formatter: 'string', console: true }]
-        }));
-});
-
 gulp.task('lintJS', () => {
     return gulp.src(paths.src.js)
         .pipe(lintJS())
@@ -62,22 +53,15 @@ gulp.task('buildHTML', () => {
         .pipe(gulp.dest(paths.dist.dir));
 });
 
-gulp.task('buildCSS', () => {
-    return gulp.src(paths.src.css)
-        .pipe(concat(paths.dist.css))
-        .pipe(minifyCSS())
-        .pipe(gulp.dest(paths.dist.dir));
-});
-
 gulp.task('buildJS', () => {
     return gulp.src(paths.src.js)
         .pipe(concat(paths.dist.js))
-        /*.pipe(minifyJS({
+        .pipe(minifyJS({
             keep_fnames: false,
             mangle: {
                 toplevel: true
             }
-        }))*/
+        }))
         .pipe(gulp.dest(paths.dist.dir));
 });
 
@@ -95,19 +79,17 @@ gulp.task('zip', () => {
 
 gulp.task('test', gulp.parallel(
     'lintHTML',
-    'lintCSS',
     'lintJS'
 ));
 
 gulp.task('build', gulp.series(
     'cleanDist',
-    gulp.parallel('buildHTML', 'buildCSS', 'buildJS'),
+    gulp.parallel('buildHTML', 'buildJS'),
     'zip'
 ));
 
 gulp.task('watch', () => {
     gulp.watch(paths.src.html, gulp.series('buildHTML', 'zip'));
-    gulp.watch(paths.src.css, gulp.series('buildCSS', 'zip'));
     gulp.watch(paths.src.js, gulp.series('buildJS', 'zip'));
     gulp.src('dist').pipe(server({
         livereload: true,
