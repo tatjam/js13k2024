@@ -68,26 +68,10 @@ function split(root, min_size, prob, itv) {
 	}
 }
 
-function debug_draw(scene, node) {
-	let open = find_open(node);
-	for (op of open) {
-		const plane = BABYLON.MeshBuilder.CreatePlane("plane", { height: op.h * 0.01, width: op.w * 0.01 ,
-			sideOrientation: BABYLON.Mesh.DOUBLESIDE
-		});
-		if (op.D === true) {
-			plane.edgesColor = BABYLON.Color4.FromColor3(BABYLON.Color3.Blue());
-		}
-		plane.enableEdgesRendering();
-		plane.edgesWidth = 0.1;
-		// position of the center!
-		plane.position.x = op.x * 0.01 + op.w * 0.01 * 0.5;
-		plane.position.y = op.y * 0.01 + op.h * 0.01 * 0.5;
-
-	}
-}
 
 function mapgen(scene, w, h) {
 	const root = { s: [], x: 0, y: 0, w: w, h: h };
+	const floor = [];
 
 	// Now shrink spaces to make the corridors
 	split(root, 15.0, 0.9, 2);
@@ -98,11 +82,34 @@ function mapgen(scene, w, h) {
 		op.w -= 3.0;
 		op.h -= 3.0;
 
+		// Corridors are built on spaces created by previous substractions
+		// One plane for the horizontal
+		const planeh = BABYLON.MeshBuilder.CreatePlane("co", { height: 3.0, width: op.w,
+			sideOrientation: BABYLON.Mesh.BACKSIDE
+		});
+		planeh.position.x = (op.x + op.w / 2);
+		planeh.position.y = (op.y + op.h + 1.5);
+		// Another for the vertical
+		const planev = BABYLON.MeshBuilder.CreatePlane("co", { height: op.h, width: 3.0,
+			sideOrientation: BABYLON.Mesh.BACKSIDE
+		});
+		planev.position.x = (op.x + op.w + 1.5);
+		planev.position.y = (op.y + op.h / 2);
+		// And another for the left-over rectangular section
+		const planec = BABYLON.MeshBuilder.CreatePlane("co", { height: 3.0, width: 3.0,
+			sideOrientation: BABYLON.Mesh.BACKSIDE
+		});
+		planec.position.x = (op.x + op.w + 1.5);
+		planec.position.y = (op.y + op.h + 1.5);
+
+		floor.push(planeh);
+		floor.push(planev);
+		floor.push(planec);
+
+
 		// Similar splitting, but this time for rooms
 		split(op, 4.0, 0.5, 2);
 	}
-
-	// TODO: Corridor floorplan: Simply spaces created by previous substractions
 
 	// Generate door locations
 	let rooms = find_open(root);
@@ -162,6 +169,7 @@ function mapgen(scene, w, h) {
 					X: ex,
 					Y: ey
 				});
+				op.R = true;
 			}
 		}
 		
@@ -169,13 +177,11 @@ function mapgen(scene, w, h) {
 
 	// TODO: Maybe generate doors into other rooms? (Increase chance of no corridor room then)
 
-	debug_draw(scene, root);
-
 	// Wall generation, including doors and windows
 	// We only generate right-bottom facing walls (except those of corridors)
 	let path = [
 		new BABYLON.Vector3(0, 0, 0),
-		new BABYLON.Vector3(0, 0, 0.1)
+		new BABYLON.Vector3(0, 0, 2.5)
 	];
 	for(op of rooms) {
 		for (let dir_idx = 0; dir_idx < 4; dir_idx++) {
@@ -183,8 +189,8 @@ function mapgen(scene, w, h) {
 
 			for(segment of op.W[dir_idx]) {
 				let shape = [];
-				shape.push(new BABYLON.Vector3(segment.x * 0.01, segment.y * 0.01, 0));
-				shape.push(new BABYLON.Vector3(segment.X * 0.01, segment.Y * 0.01, 0));
+				shape.push(new BABYLON.Vector3(segment.x, segment.y, 0));
+				shape.push(new BABYLON.Vector3(segment.X, segment.Y, 0));
 				let ext = BABYLON.MeshBuilder.ExtrudeShape("sh", {
 					shape: shape, 
 					path: path,
@@ -192,10 +198,23 @@ function mapgen(scene, w, h) {
 				});	
 			}
 		}
+
+		// We also export REACHABLE rooms to XR floorplan
+		if(op.R) {
+			const plane = BABYLON.MeshBuilder.CreatePlane("fl", { height: op.h, width: op.w ,
+				sideOrientation: BABYLON.Mesh.BACKSIDE
+			});
+				
+			plane.position.x = op.x + op.w * 0.5;
+			plane.position.y = op.y + op.h * 0.5;
+			floor.push(plane);
+		}
 	}
 
 	// Place props and enemies
 
 	// Done!
+
+	return floor;
 
 }
