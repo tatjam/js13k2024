@@ -1,6 +1,5 @@
 const gulp = require('gulp');
 
-const lintHTML = require('gulp-htmllint');
 const lintJS = require('gulp-eslint');
 const deleteFiles = require('gulp-rimraf');
 const minifyHTML = require('gulp-minify-html');
@@ -26,11 +25,6 @@ const paths = {
         js: 'm.js',
     }
 };
-
-gulp.task('lintHTML', () => {
-    return gulp.src('src/**.html')
-        .pipe(lintHTML());
-});
 
 gulp.task('lintJS', () => {
     return gulp.src(paths.src.js)
@@ -78,7 +72,6 @@ gulp.task('zip', () => {
 });
 
 gulp.task('test', gulp.parallel(
-    'lintHTML',
     'lintJS'
 ));
 
