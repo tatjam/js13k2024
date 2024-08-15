@@ -10,11 +10,9 @@ var createScene = function () {
 	var light = new BABYLON.HemisphericLight("l1", new BABYLON.Vector3(0, 1, 0), scene);
 	light.intensity = 0.7;
 
-	const env = scene.createDefaultEnvironment();
-
 	// here we add XR support
 	const xr = scene.createDefaultXRExperienceAsync({
-		floorMeshes: [env.ground],
+		//floorMeshes: [env.ground],
 	});
 
 	mapgen(scene, 60, 60);

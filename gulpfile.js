@@ -50,12 +50,12 @@ gulp.task('buildHTML', () => {
 gulp.task('buildJS', () => {
     return gulp.src(paths.src.js)
         .pipe(concat(paths.dist.js))
-        .pipe(minifyJS({
+        /*.pipe(minifyJS({
             keep_fnames: false,
             mangle: {
                 toplevel: true
             }
-        }))
+        }))*/
         .pipe(gulp.dest(paths.dist.dir));
 });
 
