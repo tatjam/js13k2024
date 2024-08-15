@@ -72,6 +72,7 @@ function split(root, min_size, prob, itv) {
 function mapgen(scene, w, h) {
 	const root = { s: [], x: 0, y: 0, w: w, h: h };
 	const floor = [];
+	const wall = [];
 
 	// Now shrink spaces to make the corridors
 	split(root, 15.0, 0.9, 2);
@@ -106,6 +107,8 @@ function mapgen(scene, w, h) {
 		floor.push(planev);
 		floor.push(planec);
 
+		// TODO: Generate corridor endpoints, and prevent the "surrounding" corridor from spawning
+
 
 		// Similar splitting, but this time for rooms
 		split(op, 4.0, 0.5, 2);
@@ -139,7 +142,7 @@ function mapgen(scene, w, h) {
 			// Aditionally generate left wall
 			op.W[0].push({x: op.x, y: op.y, X: op.x, Y: op.y + op.h});
 		}
-		if(dirs[3] || op.y + op.h == max_y) {
+		if(dirs[3] || op.y + op.h - max_y >= -.01) {
 			// Aditionally generate top wall
 			op.W[3].push({x: op.x, y: op.y + op.h, X: op.x + op.w, Y: op.y + op.h});
 		}
@@ -196,6 +199,7 @@ function mapgen(scene, w, h) {
 					path: path,
 					sideOrientation: BABYLON.Mesh.DOUBLESIDE
 				});	
+				wall.push(ext);
 			}
 		}
 
@@ -211,10 +215,22 @@ function mapgen(scene, w, h) {
 		}
 	}
 
+	var pivot = new BABYLON.TransformNode("rt");
+	
+	// Rotate all floor and walls so scene is Z-up
+	for(w of wall) {
+		w.parent = pivot;
+	}
+	for(f of floor) {
+		f.parent = pivot;
+	}
+
+	pivot.rotate(new BABYLON.Vector3(1, 0, 0), -0.5 * Math.PI, BABYLON.Space.WORLD);
+
 	// Place props and enemies
 
 	// Done!
 
-	return floor;
+	return [floor, wall];
 
 }
