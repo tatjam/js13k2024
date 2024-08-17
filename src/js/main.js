@@ -6,7 +6,8 @@ const engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engi
 
 var createScene = function () {
 	var scene = new BABYLON.Scene(engine);
-	scene.createDefaultCamera(true, true, true);
+	var cam = new BABYLON.FlyCamera("FlyCamera", new BABYLON.Vector3(0, 5, -10), scene);
+	cam.attachControl(canvas, true);
 	var light = new BABYLON.HemisphericLight("l1", new BABYLON.Vector3(0, 1, 0), scene);
 	light.groundColor = new BABYLON.Color3(1.0, 1.0, 1.0);
 	light.intensity = 0.1;

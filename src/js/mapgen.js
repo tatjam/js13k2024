@@ -6,12 +6,16 @@
 // W: wall segments (maybe undefined)
 // R: true if reachable, undefined otherwise
 // n: [corridor, ...] (up to 4 corridors)
+// N: [{x, y}, ...] (as many as neighbors, connection points to them for pathing)
 
 
 // Corridors are simpler:
 // x, y, w, h
 // T: 0 if horizontal, 1 if vertical, 2 if middle segment
 // n: [room, ...] (an arbitrary number of rooms)
+// c: [corridor, ...] (up to 4 corridors)
+// N: [{x, y}, ...] (as many as rooms, connection points to them for pathing)
+// C: [{x, y}, ...] (as many as corridors, connection points to them for pathing)
 
 // Returns 0.5 if the partition cannot be split further
 // Otherwise, returns clamping for random factor (ret and 1.0 - ret)
@@ -115,6 +119,22 @@ function find_containing(root, pos) {
 	return find_containing_room(root, pos);
 }
 
+function debug_connectivity(root) {
+	const mat = new BABYLON.StandardMaterial("debug");
+	mat.emissiveColor = new BABYLON.Color3(1.0, 0.0, 1.0);
+	for(const c of root.C) {
+		for(let a = 0; a < c.C.length; a++)
+		{
+			const points = [];
+			points.push(new BABYLON.Vector3(c.x + c.w * 0.5, 1.0, -(c.y + c.h * 0.5)));
+			points.push(new BABYLON.Vector3(c.C[a].x, 1.0, -c.C[a].y));
+			const line = BABYLON.MeshBuilder.CreateLines("l", {points: points});
+			line.material = mat;
+		}
+	}
+
+}
+
 
 function mapgen(scene, w, h) {
 	const root = { s: [], x: 0, y: 0, w: w, h: h };
@@ -142,21 +162,21 @@ function mapgen(scene, w, h) {
 		});
 		planeh.position.x = (op.x + op.w / 2);
 		planeh.position.y = (op.y + op.h + 1.5);
-		root.C.push({x: op.x, y: op.y + op.h, w: op.w, h: 3.0, T: 0, n: []});
+		root.C.push({x: op.x, y: op.y + op.h, w: op.w, h: 3.0, T: 0, n: [], N: [], c: [], C:[]});
 		// Another for the vertical
 		const planev = BABYLON.MeshBuilder.CreatePlane("co", { height: op.h, width: 3.0,
 			sideOrientation: BABYLON.Mesh.DOUBLESIDE
 		});
 		planev.position.x = (op.x + op.w + 1.5);
 		planev.position.y = (op.y + op.h / 2);
-		root.C.push({x: op.x + op.w, y: op.y, w: 3.0, h: op.h, T: 1, n: []});
+		root.C.push({x: op.x + op.w, y: op.y, w: 3.0, h: op.h, T: 1, n: [], N: [], c: [], C:[]});
 		// And another for the left-over rectangular section
 		const planec = BABYLON.MeshBuilder.CreatePlane("co", { height: 3.0, width: 3.0,
 			sideOrientation: BABYLON.Mesh.DOUBLESIDE
 		});
 		planec.position.x = (op.x + op.w + 1.5);
 		planec.position.y = (op.y + op.h + 1.5);
-		root.C.push({x: op.x + op.w, y: op.y + op.h, w: 3.0, h: 3.0, T: 2, n: []});
+		root.C.push({x: op.x + op.w, y: op.y + op.h, w: 3.0, h: 3.0, T: 2, n: [], N: [], c: [], C:[]});
 
 
 		floor.push(planeh);
@@ -171,6 +191,9 @@ function mapgen(scene, w, h) {
 		const ceilh = planeh.clone();
 		const ceilv = planev.clone();
 		const ceilc = planec.clone();
+		ceilh.parent = pivot;
+		ceilv.parent = pivot;
+		ceilc.parent = pivot;
 		ceilh.position.z = 2.5;
 		ceilv.position.z = 2.5;
 		ceilc.position.z = 2.5;
@@ -186,16 +209,20 @@ function mapgen(scene, w, h) {
 	for(const corr of root.C) {
 		if(corr.T == 0) {
 			// Check left and right for corridors
-			const corr_l = find_containing_corridor(root, {x: corr.x - 0.5, y: corr.y + 1.5});
-			const corr_r = find_containing_corridor(root, {x: corr.x + corr.w + 0.5, y: corr.y + 1.5});
-			if(corr_l) {corr.n.push(corr_l); corr_l.n.push(corr);};
-			if(corr_r) {corr.n.push(corr_r); corr_r.n.push(corr);};
+			const cl = {x: corr.x - 0.5, y: corr.y + 1.5};
+			const cr = {x: corr.x + corr.w + 0.5, y: corr.y + 1.5};
+			const corr_l = find_containing_corridor(root, cl);
+			const corr_r = find_containing_corridor(root, cr);
+			if(corr_l) {corr.c.push(corr_l); corr.C.push(cl); corr_l.c.push(corr); corr_l.C.push(cl);};
+			if(corr_r) {corr.c.push(corr_r); corr.C.push(cr); corr_r.c.push(corr); corr_r.C.push(cr);};
 		} else if(corr.T == 1) {
 			// Check top and bottom for corridors
-			const corr_u = find_containing_corridor(root, {x: corr.x + 1.5, y: corr.y - 0.5});
-			const corr_d = find_containing_corridor(root, {x: corr.x + 1.5, y: corr.y + corr.h + 0.5});
-			if(corr_u) {corr.n.push(corr_u); corr_u.n.push(corr);};
-			if(corr_d) {corr.n.push(corr_d); corr_d.n.push(corr);};
+			const cu = {x: corr.x + 1.5, y: corr.y - 0.5};
+			const cd = {x: corr.x + 1.5, y: corr.y + corr.h + 0.5};
+			const corr_u = find_containing_corridor(root, cu);
+			const corr_d = find_containing_corridor(root, cd);
+			if(corr_u) {corr.c.push(corr_u); corr.C.push(cu); corr_u.c.push(corr); corr_u.C.push(cu);};
+			if(corr_d) {corr.c.push(corr_d); corr.C.push(cd); corr_d.c.push(corr); corr_d.C.push(cd);};
 		}
 		// Rectangular segments "inherit" pathing map from the other two, so no need for special cases
 	}
@@ -307,6 +334,7 @@ function mapgen(scene, w, h) {
 			});
 			plane.position.x = op.x + op.w * 0.5;
 			plane.position.y = op.y + op.h * 0.5;
+			plane.parent = pivot;
 			floor.push(plane);
 			op.f = plane;
 
@@ -322,9 +350,10 @@ function mapgen(scene, w, h) {
 		w.parent = pivot;
 	}
 
-	console.log(w, h);
-			
 	pivot.rotate(new BABYLON.Vector3(1, 0, 0), -0.5 * Math.PI, BABYLON.Space.WORLD);
+
+
+	debug_connectivity(root);
 
 	// Place props and enemies
 
