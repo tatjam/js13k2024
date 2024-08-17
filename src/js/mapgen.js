@@ -299,13 +299,13 @@ function mapgen(scene, w, h) {
 				});
 				op.R = true;
 
-				// Little trick, from center of room to door is approximately perpendicular to door
-				// We divide by a large number to prevent huge oversteps
-				const px = mx - (op.x + op.w / 2);
-				const py = my - (op.y + op.y / 2);
+				// Perpendicular vector, simple from dir_idx
+				const px = dir_idx == 0 ? -0.1 : (dir_idx == 2 ? 0.1 : 0.0);
+				const py = dir_idx == 1 ? -0.1 : (dir_idx == 3 ? 0.1 : 0.0);
 				// Pathfinding map generation: We simply step a bit into the direction of the door
 				// and find the corridor that we expect there (this is very naive, but light on code!)
-				const np = {x: mx + px * .01, y: my + py * .01}
+
+				const np = {x: mx + px, y: my + py}
 				const corr = find_containing_corridor(root, np);
 				// TODO: What the hell??? This should really never happen, yet it does!
 				if(corr) {
