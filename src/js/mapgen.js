@@ -1,3 +1,18 @@
+/// <reference path="../../babylon.d.ts" />
+// Each room contains:
+// x, y, w, h
+// s: [child_0, child_1], maybe empty if open node
+// g: optional root parent
+// W: wall segments (maybe undefined)
+// R: true if reachable, undefined otherwise
+// n: [corridor, ...] (up to 4 corridors)
+
+
+// Corridors are simpler:
+// x, y, w, h
+// T: 0 if horizontal, 1 if vertical, 2 if middle segment
+// n: [room, ...] (an arbitrary number of rooms)
+
 // Returns 0.5 if the partition cannot be split further
 // Otherwise, returns clamping for random factor (ret and 1.0 - ret)
 // such that both generated rooms have minimum side greater than minside
@@ -8,8 +23,8 @@ function size_final(op, hor, minside) {
 function find_open(root) {
 	let out = [];
 	if (root.s.length != 0) {
-		for (o of find_open(root.s[0])) { out.push(o); }
-		for (o of find_open(root.s[1])) { out.push(o); }
+		for (const o of find_open(root.s[0])) { out.push(o); }
+		for (const o of find_open(root.s[1])) { out.push(o); }
 	} else {
 		out.push(root);
 	}
@@ -30,7 +45,7 @@ function split(root, min_size, prob, itv) {
 	while (!finished) {
 		let split_any = false;
 		let open = find_open(root);
-		for (op of open) {
+		for (const op of open) {
 			op.g = root;
 			// Split 
 			// Constant is minimum partition size
@@ -68,44 +83,97 @@ function split(root, min_size, prob, itv) {
 	}
 }
 
+// Exploits the binary tree for a fast search
+// pos is {x: x, y: z} (ie. it's in map coordinates)
+// NEVER RETURNS CORRIDORS!
+function find_containing_room(r, pos) {
+	if(pos.x >= r.x && pos.y >= r.y && pos.x <= r.x + r.w && pos.y <= r.y + r.h) {
+		if(r.s.length != 0) {
+			for(const c of r.s) {
+				let a = find_containing_room(c, pos);
+				if(a) { return a; }
+			}
+		} else {
+			return r;
+		}
+	}
+	return null;
+}
+
+function find_containing_corridor(root, pos) {
+	for(const r of root.C) {
+		if(pos.x >= r.x && pos.y >= r.y && pos.x <= r.x + r.w && pos.y <= r.y + r.h) {
+			return r;
+		}
+	}
+	return null;
+}
+
+function find_containing(root, pos) {
+	const corr = find_containing_corridor(root, pos);
+	if(corr) { return corr; }
+	return find_containing_room(root, pos);
+}
+
 
 function mapgen(scene, w, h) {
 	const root = { s: [], x: 0, y: 0, w: w, h: h };
 	const floor = [];
 	const wall = [];
+	const lights = [];
+
+	var pivot = new BABYLON.TransformNode("rt");
 
 	// Now shrink spaces to make the corridors
 	split(root, 15.0, 0.9, 2);
 	let groups = find_open(root);
 	const max_x = w - 3.0;
 	const max_y = h - 3.0;
-	for (op of groups) {
+	root.C = [];
+	for (const op of groups) {
 		op.w -= 3.0;
 		op.h -= 3.0;
-
+		
+		// We build corridors, as children of root
 		// Corridors are built on spaces created by previous substractions
 		// One plane for the horizontal
 		const planeh = BABYLON.MeshBuilder.CreatePlane("co", { height: 3.0, width: op.w,
-			sideOrientation: BABYLON.Mesh.BACKSIDE
+			sideOrientation: BABYLON.Mesh.DOUBLESIDE
 		});
 		planeh.position.x = (op.x + op.w / 2);
 		planeh.position.y = (op.y + op.h + 1.5);
+		root.C.push({x: op.x, y: op.y + op.h, w: op.w, h: 3.0, T: 0, n: []});
 		// Another for the vertical
 		const planev = BABYLON.MeshBuilder.CreatePlane("co", { height: op.h, width: 3.0,
-			sideOrientation: BABYLON.Mesh.BACKSIDE
+			sideOrientation: BABYLON.Mesh.DOUBLESIDE
 		});
 		planev.position.x = (op.x + op.w + 1.5);
 		planev.position.y = (op.y + op.h / 2);
+		root.C.push({x: op.x + op.w, y: op.y, w: 3.0, h: op.h, T: 1, n: []});
 		// And another for the left-over rectangular section
 		const planec = BABYLON.MeshBuilder.CreatePlane("co", { height: 3.0, width: 3.0,
-			sideOrientation: BABYLON.Mesh.BACKSIDE
+			sideOrientation: BABYLON.Mesh.DOUBLESIDE
 		});
 		planec.position.x = (op.x + op.w + 1.5);
 		planec.position.y = (op.y + op.h + 1.5);
+		root.C.push({x: op.x + op.w, y: op.y + op.h, w: 3.0, h: 3.0, T: 2, n: []});
+
 
 		floor.push(planeh);
 		floor.push(planev);
 		floor.push(planec);
+		
+		planeh.parent = pivot;
+		planev.parent = pivot;
+		planec.parent = pivot;
+
+		// Ceiling for corridor
+		const ceilh = planeh.clone();
+		const ceilv = planev.clone();
+		const ceilc = planec.clone();
+		ceilh.position.z = 2.5;
+		ceilv.position.z = 2.5;
+		ceilc.position.z = 2.5;
 
 		// TODO: Generate corridor endpoints, and prevent the "surrounding" corridor from spawning
 
@@ -114,10 +182,28 @@ function mapgen(scene, w, h) {
 		split(op, 4.0, 0.5, 2);
 	}
 
+	// Pathfinding map generation for corridors
+	for(const corr of root.C) {
+		if(corr.T == 0) {
+			// Check left and right for corridors
+			const corr_l = find_containing_corridor(root, {x: corr.x - 0.5, y: corr.y + 1.5});
+			const corr_r = find_containing_corridor(root, {x: corr.x + corr.w + 0.5, y: corr.y + 1.5});
+			if(corr_l) {corr.n.push(corr_l); corr_l.n.push(corr);};
+			if(corr_r) {corr.n.push(corr_r); corr_r.n.push(corr);};
+		} else if(corr.T == 1) {
+			// Check top and bottom for corridors
+			const corr_u = find_containing_corridor(root, {x: corr.x + 1.5, y: corr.y - 0.5});
+			const corr_d = find_containing_corridor(root, {x: corr.x + 1.5, y: corr.y + corr.h + 0.5});
+			if(corr_u) {corr.n.push(corr_u); corr_u.n.push(corr);};
+			if(corr_d) {corr.n.push(corr_d); corr_d.n.push(corr);};
+		}
+		// Rectangular segments "inherit" pathing map from the other two, so no need for special cases
+	}
+
+
 	// Generate door locations
 	let rooms = find_open(root);
-	console.log("GUamedo!");
-	for (op of rooms) {
+	for (const op of rooms) {
 		var dirs = [false, false, false, false];
 		// TODO: These float comparisons could lead to trouble, use epsilons!
 		// A edge leads to a corridor if it matches an edge in its parent group
@@ -151,6 +237,7 @@ function mapgen(scene, w, h) {
 		// the higher the number, the rarer the chance of a door (to prevent overloading of doors!)
 		// 0 doors (interior rooms) are of course always blocked
 		// There's the chance of an exterior room being locked too!
+		op.n = [];
 		var num_doors = dirs.filter(x => x).length;
 		for (let dir_idx = 0; dir_idx < 4; dir_idx++) {
 			if (Math.random() >= num_doors / (num_doors + 0.6)) {
@@ -164,8 +251,10 @@ function mapgen(scene, w, h) {
 				let ey = start.Y;
 				let dx = start.X - start.x;
 				let dy = start.Y - start.y;
-				op.W[dir_idx][0].X = start.x + (dx / 2) - (dx != 0 ? 0.75 : 0);
-				op.W[dir_idx][0].Y = start.y + (dy / 2) - (dy != 0 ? 0.75 : 0);
+				let mx = start.x + (dx / 2);
+				let my = start.y + (dy / 2);
+				op.W[dir_idx][0].X = mx - (dx != 0 ? 0.75 : 0);
+				op.W[dir_idx][0].Y = my - (dy != 0 ? 0.75 : 0);
 				op.W[dir_idx].push({
 					x: op.W[dir_idx][0].X + (dx != 0 ? 1.5 : 0),
 					y: op.W[dir_idx][0].Y + (dy != 0 ? 1.5 : 0),
@@ -173,24 +262,31 @@ function mapgen(scene, w, h) {
 					Y: ey
 				});
 				op.R = true;
+
+				// Little trick, from center of room to door is approximately perpendicular to door
+				// We divide by a large number to prevent huge oversteps
+				const px = mx - (op.x + op.w / 2);
+				const py = my - (op.y + op.y / 2);
+				// Pathfinding map generation: We simply step a bit into the direction of the door
+				// and find the corridor that we expect there (this is very naive, but light on code!)
+				const corr = find_containing_corridor(root, {x: mx + px * .001, y: my + py * .001});
+				op.n.push(corr);
 			}
 		}
 		
 	}
-
-	// TODO: Maybe generate doors into other rooms? (Increase chance of no corridor room then)
-
+	
 	// Wall generation, including doors and windows
 	// We only generate right-bottom facing walls (except those of corridors)
 	let path = [
 		new BABYLON.Vector3(0, 0, 0),
 		new BABYLON.Vector3(0, 0, 2.5)
 	];
-	for(op of rooms) {
+	for(const op of rooms) {
 		for (let dir_idx = 0; dir_idx < 4; dir_idx++) {
 			if(op.W[dir_idx].length == 0) {continue;}
 
-			for(segment of op.W[dir_idx]) {
+			for(const segment of op.W[dir_idx]) {
 				let shape = [];
 				shape.push(new BABYLON.Vector3(segment.x, segment.y, 0));
 				shape.push(new BABYLON.Vector3(segment.X, segment.Y, 0));
@@ -204,33 +300,37 @@ function mapgen(scene, w, h) {
 		}
 
 		// We also export REACHABLE rooms to XR floorplan
+		// and a non-floor ceiling
 		if(op.R) {
 			const plane = BABYLON.MeshBuilder.CreatePlane("fl", { height: op.h, width: op.w ,
-				sideOrientation: BABYLON.Mesh.BACKSIDE
+				sideOrientation: BABYLON.Mesh.DOUBLESIDE
 			});
-				
 			plane.position.x = op.x + op.w * 0.5;
 			plane.position.y = op.y + op.h * 0.5;
 			floor.push(plane);
+			op.f = plane;
+
+			const ceil = plane.clone();
+			ceil.position.z = 2.5;
+			ceil.parent = pivot;
 		}
 	}
 
-	var pivot = new BABYLON.TransformNode("rt");
 	
 	// Rotate all floor and walls so scene is Z-up
-	for(w of wall) {
+	for(const w of wall) {
 		w.parent = pivot;
 	}
-	for(f of floor) {
-		f.parent = pivot;
-	}
 
+	console.log(w, h);
+			
 	pivot.rotate(new BABYLON.Vector3(1, 0, 0), -0.5 * Math.PI, BABYLON.Space.WORLD);
 
 	// Place props and enemies
 
+
 	// Done!
 
-	return [floor, wall];
+	return [floor, wall, root];
 
 }

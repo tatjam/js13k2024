@@ -8,9 +8,14 @@ var createScene = function () {
 	var scene = new BABYLON.Scene(engine);
 	scene.createDefaultCamera(true, true, true);
 	var light = new BABYLON.HemisphericLight("l1", new BABYLON.Vector3(0, 1, 0), scene);
-	light.intensity = 0.7;
+	light.groundColor = new BABYLON.Color3(1.0, 1.0, 1.0);
+	light.intensity = 0.1;
+
+	scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
+	scene.clearColor = new BABYLON.Color4(0.3, 0.15, 0.12, 1.0);
+	scene.fogColor = scene.clearColor;
 	
-	const [floor, wall] = mapgen(scene, 60, 60);
+	const [floor, wall, root] = mapgen(scene, 60, 60);
 
 	// here we add XR support
 	const xr = scene.createDefaultXRExperienceAsync({
@@ -18,24 +23,12 @@ var createScene = function () {
 	}).then(experience => {
 		for(w of wall) {
 			experience.teleportation.addBlockerMesh(w);
+			//experience.teleportation.onAfterCameraTeleport
+			experience.teleportation.backwardsMovementEnabled = false;
 		}
 	});
 
-    // Create SSAO and configure all properties (for the example)
-    var ssaoRatio = {
-        ssaoRatio: 0.5, // Ratio of the SSAO post-process, in a lower resolution
-        combineRatio: 1.0 // Ratio of the combine post-process (combines the SSAO and the scene)
-    };
 
-    var ssao = new BABYLON.SSAORenderingPipeline("ssao", scene, ssaoRatio);
-    ssao.fallOff = 0.000001;
-    ssao.area = 0.0075;
-    ssao.radius = 0.001;
-    ssao.totalStrength = 1.0;
-    ssao.base = 0.5;
-
-    // Attach camera to the SSAO render pipeline
-    scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline("ssao", scene.activeCamera);
 
 	return scene;
 };
