@@ -131,6 +131,14 @@ function debug_connectivity(root) {
 			const line = BABYLON.MeshBuilder.CreateLines("l", {points: points});
 			line.material = mat;
 		}
+		for(let a = 0; a < c.N.length; a++)
+		{
+			const points = [];
+			points.push(new BABYLON.Vector3(c.x + c.w * 0.5, 1.0, -(c.y + c.h * 0.5)));
+			points.push(new BABYLON.Vector3(c.N[a].x, 1.0, -c.N[a].y));
+			const line = BABYLON.MeshBuilder.CreateLines("l", {points: points});
+			line.material = mat;
+		}
 	}
 
 }
@@ -265,6 +273,7 @@ function mapgen(scene, w, h) {
 		// 0 doors (interior rooms) are of course always blocked
 		// There's the chance of an exterior room being locked too!
 		op.n = [];
+		op.N = [];
 		var num_doors = dirs.filter(x => x).length;
 		for (let dir_idx = 0; dir_idx < 4; dir_idx++) {
 			if (Math.random() >= num_doors / (num_doors + 0.6)) {
@@ -296,8 +305,15 @@ function mapgen(scene, w, h) {
 				const py = my - (op.y + op.y / 2);
 				// Pathfinding map generation: We simply step a bit into the direction of the door
 				// and find the corridor that we expect there (this is very naive, but light on code!)
-				const corr = find_containing_corridor(root, {x: mx + px * .001, y: my + py * .001});
-				op.n.push(corr);
+				const np = {x: mx + px * .01, y: my + py * .01}
+				const corr = find_containing_corridor(root, np);
+				// TODO: What the hell??? This should really never happen, yet it does!
+				if(corr) {
+					op.n.push(corr);
+					op.N.push(np);
+					corr.n.push(op);
+					corr.N.push(np);
+				}
 			}
 		}
 		
