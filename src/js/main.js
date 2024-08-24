@@ -15,14 +15,14 @@ var createScene = function () {
 	scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
 	scene.clearColor = new BABYLON.Color4(0.3, 0.15, 0.12, 1.0);
 	scene.fogColor = scene.clearColor;
-	
-	const [floor, wall, root] = mapgen(scene, 60, 60);
+
+	const [floor, wall, root, npcs, doors, props] = mapgen(60, 60);
 
 	// here we add XR support
 	const xr = scene.createDefaultXRExperienceAsync({
 		floorMeshes: floor,
 	}).then(experience => {
-		for(w of wall) {
+		for (w of wall) {
 			experience.teleportation.addBlockerMesh(w);
 			//experience.teleportation.onAfterCameraTeleport
 			experience.teleportation.backwardsMovementEnabled = false;
